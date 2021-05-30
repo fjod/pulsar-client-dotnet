@@ -1,6 +1,5 @@
 module Pulsar.Client.IntegrationTests.Schema
 
-open System.ComponentModel
 open System.ComponentModel.DataAnnotations
 open AvroSchemaGenerator.Attributes
 open Expecto
@@ -26,6 +25,15 @@ type SimpleRecord2 =
         Name: string
         Age: int
         Surname: string
+    }
+    
+[<CLIMutable>]
+type SimpleRecord3 =
+    {
+        Name: string
+        Age: int
+        [<LogicalType(LogicalTypeKind.Date)>]
+        Date: DateTime
     }
     
 [<CLIMutable>]
@@ -89,20 +97,20 @@ let tests =
             let name = "jsonSchema"
 
             let! producer =
-                client.NewProducer(Schema.JSON<SimpleRecord>())
+                client.NewProducer(Schema.JSON<SimpleRecord3>())
                     .Topic(topicName)
                     .ProducerName(name)
                     .EnableBatching(false)
                     .CreateAsync() |> Async.AwaitTask
 
             let! consumer =
-                client.NewConsumer(Schema.JSON<SimpleRecord>())
+                client.NewConsumer(Schema.JSON<SimpleRecord3>())
                     .Topic(topicName)
                     .ConsumerName(name)
                     .SubscriptionName("test-subscription")
                     .SubscribeAsync() |> Async.AwaitTask
 
-            let input = { SimpleRecord.Name = "abc"; Age = 20 }
+            let input = { SimpleRecord3.Name = "abc"; Age = 20; Date = DateTime.UtcNow }
             let! _ = producer.SendAsync(input) |> Async.AwaitTask
 
             let! msg = consumer.ReceiveAsync() |> Async.AwaitTask
@@ -208,6 +216,37 @@ let tests =
             Expect.equal "" input (msg.GetValue())
 
             Log.Debug("Finished Protobuf schema works fine")
+        }
+        
+        testAsync "ProtobufNative schema works fine" {
+
+            Log.Debug("Start ProtobufNative schema works fine")
+            let client = getClient()
+            let topicName = "public/default/topic-" + Guid.NewGuid().ToString("N")
+            let name = "protobufNativeSchema"
+
+            let! producer =
+                client.NewProducer(Schema.PROTOBUF_NATIVE<SimpleProtoRecord>())
+                    .Topic(topicName)
+                    .ProducerName(name)
+                    .CreateAsync() |> Async.AwaitTask
+
+            let! consumer =
+                client.NewConsumer(Schema.PROTOBUF_NATIVE<SimpleProtoRecord>())
+                    .Topic(topicName)
+                    .ConsumerName(name)
+                    .SubscriptionName("test-subscription")
+                    .SubscribeAsync() |> Async.AwaitTask
+
+            let input = { SimpleProtoRecord.Name = "abc"; Age = 20  }
+            let! _ = producer.SendAsync(input) |> Async.AwaitTask
+
+            let! msg = consumer.ReceiveAsync() |> Async.AwaitTask
+            do! consumer.AcknowledgeAsync msg.MessageId |> Async.AwaitTask
+
+            Expect.equal "" input (msg.GetValue())
+
+            Log.Debug("Finished ProtobufNative schema works fine")
         }
         
         testAsync "Avro schema works fine" {
@@ -324,7 +363,38 @@ let tests =
             
             Log.Debug("Finished Avro schema upgrade works fine")
         }
-        
+        testAsync "Autoproduce and autoConsume protobuf native schema works fine" {
+            let client = getClient()
+            let topicName1 = "public/default/topic-" + Guid.NewGuid().ToString("N")          
+
+            let! producer =
+                client.NewProducer(Schema.PROTOBUF_NATIVE<SimpleProtoRecord>())
+                    .Topic(topicName1)
+                    .ProducerName("autoNormal")
+                    .EnableBatching(false)
+                    .CreateAsync() |> Async.AwaitTask
+
+            let! consumer =
+                client.NewConsumer(Schema.AUTO_CONSUME())
+                    .Topic(topicName1)
+                    .ConsumerName("autoConsume")
+                    .SubscriptionName("test-subscription")
+                    .SubscribeAsync() |> Async.AwaitTask
+
+            let input = { SimpleProtoRecord.Name = "abc"; Age = 20 }
+            let! _ = producer.SendAsync(input) |> Async.AwaitTask
+
+            let! msg1 = consumer.ReceiveAsync() |> Async.AwaitTask
+            do! consumer.AcknowledgeAsync msg1.MessageId |> Async.AwaitTask
+            do! consumer.UnsubscribeAsync() |> Async.AwaitTask
+            let genericRecord = msg1.GetValue()
+            Expect.equal "" input.Name (genericRecord.GetField("Name") |> unbox)
+            Expect.equal "" input.Age (genericRecord.GetField("Age") |> unbox)
+            
+            
+            Log.Debug("Finished Autoproduce protobuf native schema works fine")
+        }
+
         testAsync "Autoproduce and autoConsume schema works fine" {
 
             Log.Debug("Start Autoproduce schema works fine")

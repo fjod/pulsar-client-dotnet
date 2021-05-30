@@ -56,6 +56,12 @@ type internal LookupTopicResult =
         Redirect: bool
         Authoritative: bool
     }
+    
+type internal LastMessageIdResult =
+    {
+        LastMessageId: MessageId
+        MarkDeletePosition: MessageId option
+    }
 
 type KeyValueEncodingType =
     | SEPARATED = 0
@@ -78,6 +84,7 @@ type SchemaType =
     | TIME = 13
     | TIMESTAMP = 14
     | KEY_VALUE = 15
+    | PROTOBUF_NATIVE = 20
     | BYTES = -1
     | AUTO_CONSUME = -3
     | AUTO_PUBLISH = -4
@@ -409,7 +416,7 @@ type internal PulsarResponseType =
     | LookupTopicResult of LookupTopicResult
     | ProducerSuccess of ProducerSuccess
     | TopicsOfNamespace of string seq
-    | LastMessageId of MessageId
+    | LastMessageId of LastMessageIdResult
     | TopicSchema of TopicSchema option
     | PulsarError
     | Empty
@@ -431,7 +438,7 @@ type internal PulsarResponseType =
         | _ -> failwith "Incorrect return type"
 
     static member GetLastMessageId = function
-        | LastMessageId msgId -> msgId
+        | LastMessageId msgIdResult -> msgIdResult
         | _ -> failwith "Incorrect return type"
         
     static member GetTopicSchema = function
