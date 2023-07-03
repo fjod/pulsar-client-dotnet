@@ -1,0 +1,19 @@
+﻿version: "3.7"
+
+volumes:
+  pulsardatav:
+    driver: local
+
+services:
+  pulsar:
+    image: apachepulsar/pulsar:3.0.0
+    ports:
+      - "6650:6650"
+      - "8080:8080"
+    volumes:
+      - "pulsardatav:/pulsar/data"
+    command: bin/pulsar standalone
+    container_name: pulsar
+    tty: true
+    stdin_open: true
+    restart: always
