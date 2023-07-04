@@ -1,5 +1,6 @@
 ﻿namespace Pulsar.Client.Api
 
+open System.Collections.Generic
 open FSharp.UMX
 open Pulsar.Client.Common
 open Pulsar.Client.Internal
@@ -28,7 +29,7 @@ type PulsarClientConfiguration =
     }
     static member Default =
         {
-            ServiceAddresses = List.empty<Uri>
+            ServiceAddresses = List.empty
             OperationTimeout = TimeSpan.FromMilliseconds(30000.0)
             StatsInterval = TimeSpan.Zero
             MaxNumberOfRejectedRequestPerConnection = 50
@@ -220,4 +221,59 @@ type TableViewConfiguration =
             Topic = Unchecked.defaultof<TopicName>
             AutoUpdatePartitions = true
             AutoUpdatePartitionsInterval = TimeSpan.FromSeconds(60.0)
+        }
+
+type ControlledClusterFailoverConfiguration =
+    {
+        /// Default service url.
+        ServiceUri : Uri
+        /// Service url provider. ServiceUrlProvider will fetch serviceUrl from urlProvider periodically.
+        UrlProvider : string
+        /// Service url provider header to authenticate provider service.
+        UrlProviderHeaders: Dictionary<string, string>
+        /// Probe check interval.
+        CheckInterval : TimeSpan
+    }
+    static member Default =
+        {
+            ServiceUri = Unchecked.defaultof<Uri>
+            UrlProvider = String.Empty
+            UrlProviderHeaders = Unchecked.defaultof<Dictionary<string, string>>
+            CheckInterval = TimeSpan.FromSeconds(1)
+        }
+
+type FailoverPolicy =
+    | ORDER
+
+type AutoClusterFailoverConfiguration =
+    {
+        // Primary service url.
+        Primary : Uri
+        // Secondary service urls.
+        Secondary : Uri list
+        // Secondary choose policy. The default secondary choose policy is `ORDER`
+        FailoverPolicy : FailoverPolicy
+        SecondaryAuthentication : Dictionary<string, Authentication>
+        SecondaryTlsTrustCertsFilePath : Dictionary<string, string>
+        SecondaryTlsTrustStorePath : Dictionary<string, string>
+        SecondaryTlsTrustStorePassword : Dictionary<string, string>
+        // Switch failoverDelay. When one cluster failed longer than failoverDelay, it will trigger cluster switch.
+        FailoverDelay : TimeSpan
+        // SwitchBackDelay. When switched to the secondary cluster, and after the primary cluster comes back, it will wait for switchBackDelay to switch back to the primary cluster.
+        SwitchBackDelay : TimeSpan
+        // CheckInterval for probe.
+        CheckInterval : TimeSpan
+    }
+    static member Default =
+        {
+            Primary = Unchecked.defaultof<Uri>
+            Secondary = List.Empty
+            FailoverPolicy = ORDER
+            SecondaryAuthentication = Unchecked.defaultof<Dictionary<string, Authentication>>
+            SecondaryTlsTrustCertsFilePath = Unchecked.defaultof<Dictionary<string, string>>
+            SecondaryTlsTrustStorePath = Unchecked.defaultof<Dictionary<string, string>>
+            SecondaryTlsTrustStorePassword = Unchecked.defaultof<Dictionary<string, string>>
+            FailoverDelay = TimeSpan.FromSeconds(1)
+            SwitchBackDelay = TimeSpan.FromSeconds(1)
+            CheckInterval = TimeSpan.FromSeconds(1)
         }
