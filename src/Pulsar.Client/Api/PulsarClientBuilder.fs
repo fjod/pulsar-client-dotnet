@@ -4,7 +4,7 @@ open System
 open Pulsar.Client.Common
 
 
-type PulsarClientBuilder private (config: PulsarClientConfiguration) =
+type PulsarClientBuilder private (config: PulsarClientConfiguration, ?serviceUrlProvider : ServiceUrlProvider) =
 
     [<Literal>]
     let MIN_STATS_INTERVAL_SECONDS = 1
@@ -21,6 +21,7 @@ type PulsarClientBuilder private (config: PulsarClientConfiguration) =
                 |> invalidArgIf (fun addresses -> addresses |> List.isEmpty) "Service Url needs to be specified on the PulsarClientBuilder object.")
 
     new() = PulsarClientBuilder(PulsarClientConfiguration.Default)
+  
 
     member this.ServiceUrl (url: string) =
         match url |> ServiceUri.parse with
@@ -96,15 +97,27 @@ type PulsarClientBuilder private (config: PulsarClientConfiguration) =
         PulsarClientBuilder
             { config with
                 KeepAliveInterval = keepAliveInterval }
-
+    
+    member this.ServiceUrlProvider (provider : ServiceUrlProvider) =
+        PulsarClientBuilder(config, provider)
+        
+            
     member this.BuildAsync() =
-        let client =
-            config
-            |> verify
-            |> PulsarClient
-        backgroundTask {
-            do! client.Init()
-            return client
+        if serviceUrlProvider.IsSome then
+            let client =
+                config
+                |> verify
+                |> PulsarClient
+            backgroundTask {
+                do! client.Init()
+                return client
+        }
+            else
+            let okConf = config |> verify
+            let client = PulsarClient(okConf, serviceUrlProvider.Value)
+            backgroundTask {
+                do! client.Init()
+                return client
         }
 
 

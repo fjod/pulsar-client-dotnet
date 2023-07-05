@@ -28,7 +28,7 @@ type internal PulsarClientMessage =
     | Close of TaskCompletionSource<Unit>
     | Stop
 
-type PulsarClient internal (config: PulsarClientConfiguration) as this =
+type PulsarClient internal (config: PulsarClientConfiguration, ?serviceUrlProvider : ServiceUrlProvider) as this =
 
     let connectionPool = ConnectionPool(config)
     let lookupService = BinaryLookupService(config, connectionPool)
@@ -157,8 +157,13 @@ type PulsarClient internal (config: PulsarClientConfiguration) as this =
             this.SingleTopicSubscribeAsync(consumerConfig, schema, interceptors)
 
     member this.CloseAsync() =
+        if serviceUrlProvider.IsSome then
+            let test = serviceUrlProvider.Value
+            test.Dispose()
         checkIfActive()
         postAndAsyncReply mb Close
+     
+        
 
     member private this.PreProcessSchemaBeforeSubscribe(schema: ISchema<'T>, topicName) =
         backgroundTask {
@@ -387,3 +392,9 @@ type PulsarClient internal (config: PulsarClientConfiguration) as this =
 
     member this.NewTableViewBuilder(schema) =
         TableViewBuilder(this.CreateTableViewAsync, schema)
+and [<AbstractClass>] ServiceUrlProvider() =
+    // interface IDisposable with
+    //     member this.Dispose() = failwith "todo"
+    abstract member init: PulsarClient -> unit
+    abstract member GetServiceUrl: unit -> string
+    abstract member Dispose: unit -> unit
