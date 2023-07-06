@@ -392,9 +392,12 @@ type PulsarClient internal (config: PulsarClientConfiguration, ?serviceUrlProvid
 
     member this.NewTableViewBuilder(schema) =
         TableViewBuilder(this.CreateTableViewAsync, schema)
+    
+    member internal this.GetConf() =
+        config
 and [<AbstractClass>] ServiceUrlProvider() =
     // interface IDisposable with
     //     member this.Dispose() = failwith "todo"
-    abstract member init: PulsarClient -> unit
+    abstract member init: unit -> unit
     abstract member GetServiceUrl: unit -> string
     abstract member Dispose: unit -> unit
